@@ -108,8 +108,8 @@ struct TPM2B {
         } while ((__result & 0x0000ffff) == TPM2_RC_RETRY); \
         __result;                                          \
     })
-
-int tpm2_util_hex_to_byte_structure(const char *inStr, UINT16 *byteLenth, BYTE *byteBuffer);
+int tpm2_util_string_to_byte_structure(const char *inStr, UINT16 *byteLength, BYTE *byteBuffer);
+int tpm2_util_hex_to_byte_structure(const char *inStr, UINT16 *byteLength, BYTE *byteBuffer);
 
 /**
  * Appends a TPM2B_DIGEST buffer to a TPM2B_MAX buffer.

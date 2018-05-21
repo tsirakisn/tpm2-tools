@@ -29,8 +29,6 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 # THE POSSIBILITY OF SUCH DAMAGE.
 #;**********************************************************************;
-@CODE_COVERAGE_RULES@
-
 ACLOCAL_AMFLAGS = -I m4
 
 INCLUDE_DIRS = -I$(top_srcdir)/tools -I$(top_srcdir)/lib
@@ -50,16 +48,16 @@ LDADD = \
     $(LIB_COMMON) $(SAPI_LIBS) $(CRYPTO_LIBS) -ldl
 
 # keep me sorted
-bin_PROGRAMS = \
+sbin_PROGRAMS = \
     tools/tpm2_activatecredential \
     tools/tpm2_certify \
-    tools/tpm2_create \
     tools/tpm2_createpolicy \
     tools/tpm2_createprimary \
     tools/tpm2_dictionarylockout \
     tools/tpm2_getcap \
     tools/tpm2_encryptdecrypt \
     tools/tpm2_evictcontrol \
+    tools/tpm2_extendpcr \
     tools/tpm2_getmanufec \
     tools/tpm2_getpubak \
     tools/tpm2_getpubek \
@@ -84,11 +82,13 @@ bin_PROGRAMS = \
     tools/tpm2_readpublic \
     tools/tpm2_rsadecrypt \
     tools/tpm2_rsaencrypt \
+    tools/tpm2_sealdata \
     tools/tpm2_send \
     tools/tpm2_sign \
     tools/tpm2_startup \
     tools/tpm2_takeownership \
     tools/tpm2_unseal \
+    tools/tpm2_unsealdata \
     tools/tpm2_verifysignature
 
 noinst_LIBRARIES = $(LIB_COMMON)
@@ -132,7 +132,7 @@ lib_libcommon_a_SOURCES = \
 
 TOOL_SRC := tools/tpm2_tool.c tools/tpm2_tool.h
 
-tools_tpm2_create_SOURCES = tools/tpm2_create.c $(TOOL_SRC)
+tools_tpm2_createpolicy_SOURCES = tools/tpm2_createpolicy.c $(TOOL_SRC)
 tools_tpm2_createprimary_SOURCES = tools/tpm2_createprimary.c $(TOOL_SRC)
 tools_tpm2_getcap_SOURCES = tools/tpm2_getcap.c $(TOOL_SRC)
 tools_tpm2_pcrlist_SOURCES = tools/tpm2_pcrlist.c $(TOOL_SRC)
@@ -169,10 +169,12 @@ tools_tpm2_rsaencrypt_SOURCES = tools/tpm2_rsaencrypt.c $(TOOL_SRC)
 tools_tpm2_sign_SOURCES = tools/tpm2_sign.c $(TOOL_SRC)
 tools_tpm2_unseal_SOURCES = tools/tpm2_unseal.c $(TOOL_SRC)
 tools_tpm2_dictionarylockout_SOURCES = tools/tpm2_dictionarylockout.c $(TOOL_SRC)
-tools_tpm2_createpolicy_SOURCES = tools/tpm2_createpolicy.c $(TOOL_SRC)
 tools_tpm2_pcrextend_SOURCES = tools/tpm2_pcrextend.c $(TOOL_SRC)
 tools_tpm2_pcrevent_SOURCES = tools/tpm2_pcrevent.c $(TOOL_SRC)
 tools_tpm2_rc_decode_SOURCES = tools/tpm2_rc_decode.c $(TOOL_SRC)
+tools_tpm2_extendpcr_SOURCES = tools/tpm2_extendpcr.c $(TOOL_SRC)
+tools_tpm2_sealdata_SOURCES = tools/tpm2_sealdata.c $(TOOL_SRC) tools/tpm2_create.c lib/build-policy.c
+tools_tpm2_unsealdata_SOURCES = tools/tpm2_unsealdata.c $(TOOL_SRC) lib/build-policy.c
 
 if UNIT
 TESTS = $(check_PROGRAMS)

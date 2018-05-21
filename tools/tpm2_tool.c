@@ -80,7 +80,7 @@ static TSS2_SYS_CONTEXT* sapi_ctx_init(TSS2_TCTI_CONTEXT *tcti_ctx) {
 
     TSS2_ABI_VERSION abi_version = SUPPORTED_ABI_VERSION;
 
-    size_t size = Tss2_Sys_GetContextSize(0);
+    size_t size = Tss2_Sys_GetContextSize(12000);
     TSS2_SYS_CONTEXT *sapi_ctx = (TSS2_SYS_CONTEXT*) calloc(1, size);
     if (sapi_ctx == NULL) {
         LOG_ERR("Failed to allocate 0x%zx bytes for the SAPI context\n",

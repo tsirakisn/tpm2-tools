@@ -40,7 +40,7 @@
 #include "tpm2_util.h"
 #include "tpm2_alg_util.h"
 
-static int pcr_get_id(const char *arg, UINT32 *pcrId)
+int pcr_get_id(const char *arg, UINT32 *pcrId)
 {
     UINT32 n = 0;
 
@@ -96,6 +96,30 @@ static bool pcr_parse_selection(const char *str, size_t len, TPMS_PCR_SELECTION 
     return true;
 }
 
+int pcr_parse_arg(char *arg, UINT32 *pcrId, BYTE *forwardHash, bool *hash_set)
+{
+    char * pstr;
+    UINT16 length;
+    int ret = 0;
+
+    *hash_set = (strchr(arg, ':') != NULL);
+    if (*hash_set) {
+        //read forward hash and convert to hex to byte
+        pstr = strtok(arg, ":");
+        if (pstr) {
+            ret = pcr_get_id(pstr, pcrId);
+        }
+
+        pstr = strtok(NULL, ":");
+        if (pstr) {
+            length = sizeof(BYTE)*32;
+            tpm2_util_hex_to_byte_structure(pstr, &length, forwardHash);
+        }
+    } else {
+        ret = pcr_get_id(arg, pcrId);
+    }
+    return ret;
+}
 
 bool pcr_parse_selections(const char *arg, TPML_PCR_SELECTION *pcrSels) {
     const char *strLeft = arg;

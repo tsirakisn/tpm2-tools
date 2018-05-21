@@ -103,4 +103,6 @@ TSS2_RC tpm_hash_file(TSS2_SYS_CONTEXT *sapi_context, TPMI_ALG_HASH halg,
         TPMI_RH_HIERARCHY hierarchy, FILE *input, TPM2B_DIGEST *result,
         TPMT_TK_HASHCHECK *validation);
 
+UINT32 tpm_hash(TSS2_SYS_CONTEXT *sapi_context, TPMI_ALG_HASH hashAlg, UINT16 size, BYTE *data, TPM2B_DIGEST *result);
+
 #endif /* SRC_TPM_HASH_H_ */

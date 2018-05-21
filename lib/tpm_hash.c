@@ -30,6 +30,7 @@
 //**********************************************************************;
 #include <errno.h>
 #include <string.h>
+#include <stdio.h>
 
 #include <tss2/tss2_sys.h>
 
@@ -64,6 +65,7 @@ TSS2_RC tpm_hash_sequence(TSS2_SYS_CONTEXT *sapi_context, TPMI_ALG_HASH hash_alg
     UINT32 rval = Tss2_Sys_HashSequenceStart(sapi_context, 0, &null_auth,
             hash_alg, &sequence_handle, 0);
     if (rval != TPM2_RC_SUCCESS) {
+        printf("HashSequenceStart failed, rc=%x\n", rval);
         return rval;
     }
 
@@ -74,6 +76,7 @@ TSS2_RC tpm_hash_sequence(TSS2_SYS_CONTEXT *sapi_context, TPMI_ALG_HASH hash_alg
                 &cmd_auth_array, (TPM2B_MAX_BUFFER *) &buffer_list[i], 0);
 
         if (rval != TPM2_RC_SUCCESS) {
+            printf("SequenceUpdate failed, i=%d rc=%x\n", i, rval);
             return rval;
         }
     }
@@ -123,6 +126,7 @@ TSS2_RC tpm_hash_file(TSS2_SYS_CONTEXT *sapi_context, TPMI_ALG_HASH halg,
             halg, &sequenceHandle, NULL);
     if (rval != TPM2_RC_SUCCESS) {
         LOG_ERR("Tss2_Sys_HashSequenceStart failed: 0x%X", rval);
+        printf("SequenceComplete failed, rc=%x\n", rval);
         return rval;
     }
 

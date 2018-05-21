@@ -106,6 +106,18 @@ bool tpm2_util_string_to_uint32(const char *str, uint32_t *value) {
     return true;
 }
 
+int tpm2_util_string_to_byte_structure(const char *inStr, UINT16 *byteLength, BYTE *byteBuffer) {
+    if(inStr == NULL || byteLength == NULL || byteBuffer == NULL)
+        return -1;
+    if(*byteLength <= strlen(inStr))
+        return -2;
+
+    *byteLength = strlen(inStr);
+    memcpy(byteBuffer, inStr, *byteLength);
+    byteBuffer[*byteLength] = '\0';
+    return 0;
+}
+
 int tpm2_util_hex_to_byte_structure(const char *inStr, UINT16 *byteLength,
         BYTE *byteBuffer) {
     int strLength; //if the inStr likes "1a2b...", no prefix "0x"
