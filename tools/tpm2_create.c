@@ -49,6 +49,7 @@
 #include "tpm2_password_util.h"
 #include "tpm2_tool.h"
 #include "tpm2_util.h"
+#include "shared.h"
 
 typedef struct tpm_create_ctx tpm_create_ctx;
 struct tpm_create_ctx {
@@ -62,6 +63,7 @@ struct tpm_create_ctx {
     char *opu_path;
     char *opr_path;
     char *context_parent_path;
+    TPMA_OBJECT objectAttributes;
     struct {
         UINT16 H : 1;
         UINT16 P : 1;
@@ -112,6 +114,8 @@ int setup_alg()
         LOG_ERR("nameAlg algorithm: 0x%0x not support !", ctx.nameAlg);
         return -1;
     }
+
+    ctx.in_public.publicArea.type = ctx.type;
 
     switch(ctx.in_public.publicArea.type) {
     case TPM2_ALG_RSA:
@@ -164,7 +168,7 @@ int setup_alg()
     return 0;
 }
 
-int create(TSS2_SYS_CONTEXT *sapi_context)
+int create_internal(TSS2_SYS_CONTEXT *sapi_context)
 {
     TSS2_RC rval;
     TSS2L_SYS_AUTH_COMMAND sessionsData;
@@ -186,6 +190,10 @@ int create(TSS2_SYS_CONTEXT *sapi_context)
 
     if(setup_alg())
         return -1;
+
+    if (ctx.flags.A) {
+        ctx.in_public.publicArea.objectAttributes = ctx.objectAttributes;
+    }
 
     creationPCR.count = 0;
 
@@ -216,135 +224,6 @@ int create(TSS2_SYS_CONTEXT *sapi_context)
     return 0;
 }
 
-static bool on_option(char key, char *value) {
-
-    bool res;
-
-    switch(key) {
-    case 'H':
-        if(!tpm2_util_string_to_uint32(value, &ctx.parent_handle)) {
-            LOG_ERR("Invalid parent handle, got\"%s\"", value);
-            return false;
-        }
-        ctx.flags.H = 1;
-        break;
-    case 'P':
-        res = tpm2_password_util_from_optarg(value, &ctx.session_data.hmac);
-        if (!res) {
-            LOG_ERR("Invalid parent key password, got\"%s\"", value);
-            return false;
-        }
-        ctx.flags.P = 1;
-        break;
-    case 'K':
-        res = tpm2_password_util_from_optarg(value, &ctx.in_sensitive.sensitive.userAuth);
-        if (!res) {
-            LOG_ERR("Invalid key password, got\"%s\"", value);
-            return false;
-        }
-        ctx.flags.K = 1;
-        ctx.in_public.publicArea.objectAttributes |= TPMA_OBJECT_USERWITHAUTH;
-        break;
-    case 'g':
-        ctx.nameAlg = tpm2_alg_util_from_optarg(value);
-        if(ctx.nameAlg == TPM2_ALG_ERROR) {
-            LOG_ERR("Invalid hash algorithm, got\"%s\"", value);
-            return false;
-        }
-        ctx.flags.g = 1;
-        break;
-    case 'G':
-        ctx.in_public.publicArea.type = tpm2_alg_util_from_optarg(value);
-        if(ctx.in_public.publicArea.type == TPM2_ALG_ERROR) {
-            LOG_ERR("Invalid key algorithm, got\"%s\"", value);
-            return false;
-        }
-
-        ctx.flags.G = 1;
-        break;
-    case 'A': {
-        bool res = tpm2_attr_util_obj_from_optarg(value,
-                &ctx.in_public.publicArea.objectAttributes);
-        if(!res) {
-            LOG_ERR("Invalid object attribute, got\"%s\"", value);
-            return false;
-        }
-        ctx.flags.A = 1;
-    } break;
-    case 'I':
-        ctx.input = strcmp("-", value) ? value : NULL;
-        ctx.flags.I = 1;
-        break;
-    case 'L':
-        ctx.in_public.publicArea.authPolicy.size = sizeof(ctx.in_public.publicArea.authPolicy) - 2;
-        if(!files_load_bytes_from_path(value, ctx.in_public.publicArea.authPolicy.buffer,
-                                       &ctx.in_public.publicArea.authPolicy.size)) {
-            return false;
-        }
-        ctx.flags.L = 1;
-        if (!ctx.flags.K) {
-             ctx.in_public.publicArea.objectAttributes &= ~TPMA_OBJECT_USERWITHAUTH;
-        }
-        break;
-    case 'S':
-        if (!tpm2_util_string_to_uint32(value, &ctx.session_data.sessionHandle)) {
-            LOG_ERR("Could not convert session handle to number, got: \"%s\"",
-                    value);
-            return false;
-        }
-        break;
-    case 'u':
-        ctx.opu_path = value;
-        if(files_does_file_exist(ctx.opu_path) != 0) {
-            return false;
-        }
-        ctx.flags.o = 1;
-        break;
-    case 'r':
-        ctx.opr_path = value;
-        if(files_does_file_exist(ctx.opr_path) != 0) {
-            return false;
-        }
-        ctx.flags.O = 1;
-        break;
-    case 'c':
-        ctx.context_parent_path = value;
-        if(ctx.context_parent_path == NULL || ctx.context_parent_path[0] == '\0') {
-            return false;
-        }
-        ctx.flags.c = 1;
-        break;
-    };
-
-    return true;
-}
-
-bool tpm2_tool_onstart(tpm2_options **opts) {
-
-    static struct option topts[] = {
-      {"parent",1,NULL,'H'},
-      {"pwdp",1,NULL,'P'},
-      {"pwdk",1,NULL,'K'},
-      {"halg",1,NULL,'g'},
-      {"kalg",1,NULL,'G'},
-      {"object-attributes",1,NULL,'A'},
-      {"in-file",1,NULL,'I'},
-      {"policy-file",1,NULL,'L'},
-      {"pubfile",1,NULL,'u'},
-      {"privfile",1,NULL,'r'},
-      {"context-parent",1,NULL,'c'},
-      {"input-session-handle",1,NULL,'S'},
-    };
-
-    setbuf(stdout, NULL);
-    setvbuf (stdout, NULL, _IONBF, BUFSIZ);
-
-    *opts = tpm2_options_new("H:P:K:g:G:A:I:L:u:r:c:S:", ARRAY_LEN(topts),
-            topts, on_option, NULL, TPM2_OPTIONS_SHOW_USAGE);
-
-    return *opts != NULL;
-}
-
 static bool load_sensitive(void) {
 
     ctx.in_sensitive.sensitive.data.size = BUFFER_SIZE(typeof(ctx.in_sensitive.sensitive.data), buffer);
@@ -352,10 +231,32 @@ static bool load_sensitive(void) {
             &ctx.in_sensitive.sensitive.data.size, ctx.in_sensitive.sensitive.data.buffer);
 }
 
-int tpm2_tool_onrun(TSS2_SYS_CONTEXT *sapi_context, tpm2_option_flags flags) {
+// tpm2_create used to be a commandline tool, but now it's just a library.
+// This wrapper allows us to build the tpm_create context from the args and
+// skirt the new tpm2_tool option parsing scheme.
+//
+// Calls create_internal(), which was the original create()
+// Note that some flags (e.g. P) are currently unused
+int create(TSS2_SYS_CONTEXT *sapi_context, TPMI_DH_OBJECT parent_handle, TPM2B_PUBLIC *in_public, TPM2B_SENSITIVE_CREATE *in_sensitive, TPMI_ALG_PUBLIC type, TPMI_ALG_HASH nameAlg, char *input, char *opu_path, char *opr_path, int H_flag, int g_flag, int G_flag, int I_flag, int o_flag, int O_flag, int A_flag, TPMA_OBJECT objectAttributes) {
 
-    UNUSED(flags);
+    ctx.parent_handle = parent_handle;
+    ctx.in_public = *in_public;
+    ctx.in_sensitive = *in_sensitive;
+    ctx.type = type;
+    ctx.nameAlg = nameAlg;
+    ctx.input = input;
+    ctx.opu_path = opu_path;
+    ctx.opr_path = opr_path;
+    ctx.objectAttributes = objectAttributes;
+    ctx.flags.H = H_flag;
+    ctx.flags.g = g_flag;
+    ctx.flags.G = G_flag;
+    ctx.flags.I = I_flag;
+    ctx.flags.o = o_flag;
+    ctx.flags.O = O_flag;
+    ctx.flags.A = A_flag;
 
+    // Everything below used to be tpm2_tool_onrun
     int returnVal = 0;
     int flagCnt = 0;
 
@@ -369,21 +270,24 @@ int tpm2_tool_onrun(TSS2_SYS_CONTEXT *sapi_context, tpm2_option_flags flags) {
         }
     }
 
-    if (ctx.flags.I && ctx.in_public.publicArea.type != TPM2_ALG_KEYEDHASH) {
+    if (ctx.flags.I && ctx.type != TPM2_ALG_KEYEDHASH) {
         LOG_ERR("Only TPM2_ALG_KEYEDHASH algorithm is allowed when sealing data");
         return 1;
     }
 
     flagCnt = ctx.flags.H + ctx.flags.g + ctx.flags.G + ctx.flags.c;
+
     if(flagCnt == 1) {
         return 1;
     } else if(flagCnt == 3 && (ctx.flags.H == 1 || ctx.flags.c == 1) &&
               ctx.flags.g == 1 && ctx.flags.G == 1) {
+
         if(ctx.flags.c)
             returnVal = files_load_tpm_context_from_file(sapi_context,
                                                          &ctx.parent_handle, ctx.context_parent_path) != true;
+
         if(returnVal == 0)
-            returnVal = create(sapi_context);
+            returnVal = create_internal(sapi_context);
 
         if(returnVal)
             return 1;

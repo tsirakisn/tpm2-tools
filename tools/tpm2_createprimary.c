@@ -191,6 +191,8 @@ int create_primary(TSS2_SYS_CONTEXT *sapi_context) {
 static bool on_option(char key, char *value) {
 
     bool res;
+    char pass[40];
+    char *index = NULL;
 
     switch(key) {
     case 'H':
@@ -209,7 +211,15 @@ static bool on_option(char key, char *value) {
         ctx.flags.A = 1;
         break;
     case 'P':
-        res = tpm2_password_util_from_optarg(value, &ctx.session_data.hmac);
+        if (fgets(pass, 40, stdin)) {
+            index = strchr(pass, '\n');
+            if (index)
+                *index = '\0';
+        } else {
+            LOG_ERR("No password provided");
+            return false;
+        }
+        res = tpm2_password_util_from_optarg(pass, &ctx.session_data.hmac);
         if (!res) {
             LOG_ERR("Invalid parent key password, got\"%s\"", value);
             return false;
@@ -290,7 +300,7 @@ bool tpm2_tool_onstart(tpm2_options **opts) {
     setbuf(stdout, NULL);
     setvbuf (stdout, NULL, _IONBF, BUFSIZ);
 
-    *opts = tpm2_options_new("A:P:K:g:G:C:L:S:H:", ARRAY_LEN(topts), topts,
+    *opts = tpm2_options_new("A:PK:g:G:C:L:S:H:", ARRAY_LEN(topts), topts,
             on_option, NULL, TPM2_OPTIONS_SHOW_USAGE);
 
     return *opts != NULL;

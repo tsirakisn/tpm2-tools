@@ -4,7 +4,7 @@
 #include <string.h>
 #include "tpm_session.h"
 #include "tpm_hash.h"
-#include "string-bytes.h"
+#include "tpm2_util.h"
 #include "pcr.h"
 
 #define INIT_SIMPLE_TPM2B_SIZE( type ) (type).size = sizeof( type ) - 2;
@@ -25,12 +25,11 @@ int build_pcr_policy( TSS2_SYS_CONTEXT *sysContext, SESSION *policySession, pcr_
 {
     TPM2B_DIGEST pcrDigest;
     TPML_DIGEST tmpPcrValues;
-    TPM2B_MAX_BUFFER pcrValues[24];
+    TPM2B_DIGEST pcrValues[24];
     TPML_PCR_SELECTION pcrs, pcrsTmp, pcrSelectionOut;
     UINT32 pcrUpdateCounter;
 
     TPM2_RC rval = TPM2_RC_SUCCESS;
-    char empty[32] = {0};
     zero_pcr_selection(&pcrs, nameAlg);
 
     //Init the pcr selection we will use for the PCRPolicy call
@@ -40,7 +39,7 @@ int build_pcr_policy( TSS2_SYS_CONTEXT *sysContext, SESSION *policySession, pcr_
     for(int i = 0; i < pcrCountIn; i++)
     {
         //No forward hash provided, need to read this pcr
-        if(!memcmp(pcrList[i]->forwardHash, empty, 32)) {
+        if(!pcrList[i]->hash_set) {
             zero_pcr_selection(&pcrsTmp, nameAlg);
             SET_PCR_SELECT_BIT(pcrsTmp.pcrSelections[0], pcrList[i]->pcr);
             memset(&tmpPcrValues, 0, sizeof(TPML_DIGEST));
@@ -52,6 +51,7 @@ int build_pcr_policy( TSS2_SYS_CONTEXT *sysContext, SESSION *policySession, pcr_
             memcpy(pcrValues[i].buffer, tmpPcrValues.digests[0].buffer, tmpPcrValues.digests[0].size);
         } else {
             //Forward hash provided, copy into digest buffer
+            pcrValues[i].size = sizeof(pcrList[i]->forwardHash);
             memcpy(pcrValues[i].buffer, pcrList[i]->forwardHash, sizeof(pcrList[i]->forwardHash));
         }
     }
@@ -116,9 +116,7 @@ int build_policy_external(TSS2_SYS_CONTEXT *sysContext, SESSION **policySession,
             return rval;
 
         // And remove the session from sessions table.
-        rval = tpm_session_auth_end( *policySession );
-        if( rval != TPM2_RC_SUCCESS )
-            return rval;
+        tpm_session_auth_end( *policySession );
     }
 
     memcpy(policyDigestOut->buffer, policyDigest.buffer, policyDigest.size);

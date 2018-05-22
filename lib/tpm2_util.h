@@ -108,6 +108,7 @@ struct TPM2B {
         } while ((__result & 0x0000ffff) == TPM2_RC_RETRY); \
         __result;                                          \
     })
+
 int tpm2_util_string_to_byte_structure(const char *inStr, UINT16 *byteLength, BYTE *byteBuffer);
 int tpm2_util_hex_to_byte_structure(const char *inStr, UINT16 *byteLength, BYTE *byteBuffer);
 
